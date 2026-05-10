@@ -1,0 +1,53 @@
+---
+name: K3s Integration
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  k3s:
+    name: Test K3s stack
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install K3s
+        run: |
+          curl -sfL https://get.k3s.io | sh -
+          mkdir -p ~/.kube
+          sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+          sudo chown "$(id -u):$(id -g)" ~/.kube/config
+
+      - name: Wait for K3s node to be ready
+        run: kubectl wait --for=condition=Ready node --all --timeout=120s
+
+      - name: Build Docker images
+        run: |
+          docker build -t example-app:ci -f .docker/app/Dockerfile .
+          docker build -t example-db:ci  -f .docker/db/Dockerfile  .
+
+      - name: Import images into K3s containerd
+        run: |
+          docker save example-app:ci | sudo k3s ctr images import -
+          docker save example-db:ci  | sudo k3s ctr images import -
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/secret.yaml
+          kubectl apply -f k8s/db.yaml
+          kubectl apply -f k8s/app.yaml
+
+      - name: Wait for db deployment to be ready
+        run: kubectl rollout status deployment/db -n django-app --timeout=120s
+
+      - name: Wait for app deployment to be ready
+        run: kubectl rollout status deployment/app -n django-app --timeout=120s
+
+      - name: Run Django system check
+        run: kubectl exec deployment/app -n django-app -- python manage.py check
