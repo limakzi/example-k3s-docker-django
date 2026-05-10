@@ -1,5 +1,14 @@
 ---
 services:
+ nginx:
+   build:
+     dockerfile: .docker/nginx/Dockerfile
+     context: .
+   ports:
+     - "8000:80"
+   depends_on:
+     - django-web
+
  django-web:
    build:
     dockerfile: .docker/app/Dockerfile
@@ -9,8 +18,8 @@ services:
     DATABASE_NAME: ${DATABASE_NAME}
     DATABASE_USERNAME: ${DATABASE_USERNAME}
     DATABASE_PASSWORD: ${DATABASE_PASSWORD}
-   ports:
-     - "8080:8000"
+   deploy:
+     replicas: 3
 
  db:
    build:
