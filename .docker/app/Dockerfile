@@ -1,6 +1,6 @@
 FROM python:3.13  
 
-EXPOSE 8080
+EXPOSE 8000
 
 ## {{
 ENV APP_USERNAME "django"
