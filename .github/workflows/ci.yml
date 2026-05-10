@@ -12,6 +12,32 @@ env:
   IMAGE_OWNER: ${{ github.repository_owner }}
 
 jobs:
+  docker-compose:
+    name: Test docker-compose stack
+    runs-on: ubuntu-latest
+
+    env:
+      DATABASE_NAME: django
+      DATABASE_USERNAME: django
+      DATABASE_PASSWORD: django
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Build services
+        run: docker compose build
+
+      - name: Start services
+        run: docker compose up --detach --wait
+
+      - name: Run Django system check
+        run: docker compose exec django-web python manage.py check
+
+      - name: Tear down services
+        if: always()
+        run: docker compose down --volumes
+
   build-and-push:
     name: Build and push Docker images
     runs-on: ubuntu-latest
